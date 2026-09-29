@@ -1,0 +1,1431 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MODUL AJAR GENERATOR - Aplikasi Pembuat Modul Ajar</title>
+    <!-- CSS & JS External Dependencies via CDN (Direct PDF Generation Client-Side) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --primary-hover: #1e40af;
+            --secondary: #0ea5e9;
+            --bg-dark: #0f172a;
+            --bg-light: #f8fafc;
+            --sidebar-width: 260px;
+            --border-color: #cbd5e1;
+            --text-main: #334155;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-light);
+            color: var(--text-main);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Toast Notification */
+        #toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #10b981;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: none;
+            z-index: 9999;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        /* Sidebar Styling */
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--bg-dark);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+
+        .sidebar-brand {
+            padding: 20px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-bottom: 1px solid #1e293b;
+            color: var(--secondary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+            overflow-y: auto;
+            flex: 1;
+            padding: 10px 0;
+        }
+
+        .sidebar-menu li {
+            padding: 12px 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: #94a3b8;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .sidebar-menu li:hover, .sidebar-menu li.active {
+            background-color: #1e293b;
+            color: white;
+            border-left: 4px solid var(--secondary);
+        }
+
+        /* Main Area */
+        .main-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        header {
+            background: white;
+            padding: 15px 30px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .header-title h1 { font-size: 1.3rem; color: var(--primary); }
+        .header-title p { font-size: 0.8rem; color: #64748b; }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 8px 14px;
+            border-radius: 6px;
+            border: none;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-success { background: #10b981; color: white; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-secondary { background: #e2e8f0; color: #334155; }
+
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: #e2e8f0;
+            color: #475569;
+        }
+
+        .content-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 25px;
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Form Controls */
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: var(--primary);
+            border-bottom: 2px solid #f1f5f9;
+            padding-bottom: 8px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .form-group.full-width { grid-column: 1 / -1; }
+
+        label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #475569;
+        }
+
+        input[type="text"], input[type="number"], select, textarea {
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            outline: none;
+            width: 100%;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--secondary);
+            box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.2);
+        }
+
+        textarea { height: 80px; resize: vertical; }
+
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+        }
+
+        /* Dynamic List Item */
+        .dynamic-item {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: flex-start;
+            background: #f8fafc;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .dynamic-item input, .dynamic-item textarea { flex: 1; }
+
+        /* PREVIEW AREA (A4 SIMULATION) */
+        .preview-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+
+        .preview-viewport {
+            background: #525659;
+            padding: 30px;
+            overflow-x: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            max-height: calc(100vh - 200px);
+            overflow-y: auto;
+        }
+
+        .a4-page {
+            background: white;
+            width: 210mm;
+            min-height: 297mm;
+            padding: 20mm;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 11pt;
+            line-height: 1.4;
+            color: #000;
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        /* Document Template Formatting */
+        .doc-header-title {
+            text-align: center;
+            font-weight: bold;
+            font-size: 14pt;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+        }
+
+        .doc-logo-box {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .doc-logo-box img {
+            max-height: 120px;
+            width: auto;
+        }
+
+        .doc-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0 15px 0;
+        }
+
+        .doc-table th, .doc-table td {
+            border: 1px solid #000;
+            padding: 6px 8px;
+            vertical-align: top;
+            font-size: 10.5pt;
+        }
+
+        .doc-section-bg {
+            background-color: #f2f2f2;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .doc-signatures {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 40px;
+            text-align: center;
+        }
+
+        /* Mobile Hamburger */
+        .menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--primary);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            .sidebar {
+                position: fixed;
+                left: -100%;
+                top: 0;
+                bottom: 0;
+                width: 250px;
+            }
+            .sidebar.open { left: 0; }
+            .menu-toggle { display: block; }
+            .preview-viewport { padding: 10px; }
+            .a4-page { width: 100%; min-height: auto; padding: 10mm; }
+        }
+
+        /* Print Media Styles */
+        @media print {
+            body * { visibility: hidden; }
+            #previewViewport, #previewViewport * { visibility: visible; }
+            #previewViewport {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                background: white;
+                padding: 0;
+            }
+            .a4-page {
+                box-shadow: none;
+                margin: 0;
+                width: 100%;
+                page-break-after: always;
+            }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Toast Component -->
+    <div id="toast">Data berhasil disimpan</div>
+
+    <!-- Sidebar Navigation -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-brand">
+            <span>MODUL GENERATOR</span>
+            <span style="font-size: 0.7rem; color: #64748b;">v2026.1</span>
+        </div>
+        <ul class="sidebar-menu">
+            <li class="active" onclick="switchTab('dashboard')"><span>📊</span> Dashboard</li>
+            <li onclick="switchTab('identitas')"><span>🏫</span> Identitas Modul</li>
+            <li onclick="switchTab('identifikasi')"><span>🎯</span> Identifikasi</li>
+            <li onclick="switchTab('desain')"><span>📑</span> Desain Pembelajaran</li>
+            <li onclick="switchTab('langkah')"><span>🐾</span> Langkah Pembelajaran</li>
+            <li onclick="switchTab('asesmen')"><span>📝</span> Rencana Asesmen</li>
+            <li onclick="switchTab('soal')"><span>❓</span> Soal & Kunci</li>
+            <li onclick="switchTab('rubrik')"><span>📊</span> Rubrik Penilaian</li>
+            <li onclick="switchTab('refleksi')"><span>💡</span> Refleksi Guru/Murid</li>
+            <li onclick="switchTab('lkpd')"><span>📂</span> Lampiran & LKPD</li>
+            <li onclick="switchTab('preview')"><span>👁️</span> Preview Dokumen</li>
+            <li onclick="switchTab('pengaturan')"><span>⚙️</span> Pengaturan Dokumen</li>
+        </ul>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="main-wrapper">
+        <header>
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+                <div class="header-title">
+                    <h1>Modul Ajar Generator</h1>
+                    <p>Buat modul ajar Kurikulum Merdeka / PjBL cepat, profesional, & fleksibel</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <span class="status-badge" id="saveStatus">Tersimpan</span>
+                <button class="btn btn-secondary" onclick="exportJSON()">📤 Export</button>
+                <button class="btn btn-secondary" onclick="importJSON()">📥 Import</button>
+                <button class="btn btn-danger" onclick="resetCurrentModul()">🔄 Reset</button>
+                <button class="btn btn-success" onclick="saveData(true)">💾 Simpan</button>
+                <button class="btn btn-primary" onclick="switchTab('preview')">👁️ Preview</button>
+                <button class="btn btn-primary" style="background:#0284c7;" onclick="downloadPDF()">📄 Download PDF</button>
+            </div>
+        </header>
+
+        <div class="content-body">
+            
+            <!-- DASHBOARD TAB -->
+            <div id="tab-dashboard" class="tab-content active">
+                <div class="card">
+                    <div class="card-title">Daftar Modul Saya</div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                        <p>Kelola dan buat draft modul ajar secara terstruktur di bawah ini.</p>
+                        <button class="btn btn-primary" onclick="createNewModul()">+ Buat Modul Baru</button>
+                    </div>
+                    <table class="doc-table" style="background: white;" id="tableModulList">
+                        <thead>
+                            <tr style="background: #f1f5f9;">
+                                <th>Nama Modul</th>
+                                <th>Mata Pelajaran</th>
+                                <th>Kelas/Fase</th>
+                                <th>Terakhir Diubah</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="modulListBody">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 1. IDENTITAS MODUL TAB -->
+            <div id="tab-identitas" class="tab-content">
+                <div class="card">
+                    <div class="card-title">1. Identitas Sekolah & Guru</div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Nama Penyusun (Guru)</label>
+                            <input type="text" id="id_penyusun" oninput="autoSave()">
+                        </div>
+                        <div class="form-group">
+                            <label>NIP / NUPTK</label>
+                            <input type="text" id="id_nip" oninput="autoSave()">
+                        </div>
+                        <div class="form-group">
+                            <label>Nama Sekolah / Instansi</label>
+                            <input type="text" id="id_sekolah" oninput="autoSave()">
+                        </div>
+                        <div class="form-group">
+                            <label>Mata Pelajaran</label>
+                            <input type="text" id="id_mapel" oninput="autoSave()">
+                        </div>
+                        <div class="form-group">
+                            <label>Topik / Judul Modul</label>
+                            <input type="text" id="id_topik" oninput="autoSave()">
+                        </div>
+                        <div class="form-group">
+                            <label>Alokasi Waktu (JP & Pertemuan)</label>
+                            <input type="text" id="id_alokasi" placeholder="Contoh: 2 Pertemuan (5JP x 45 menit)" oninput="autoSave()">
+                        </div>
+                        <div class="form-group">
+                            <label>Jenjang / Kelas / Fase</label>
+                            <input type="text" id="id_fase" placeholder="Contoh: SMK / XI / F" oninput="autoSave()">
+                        </div>
+                        <div class="form-group">
+                            <label>Tahun Pelajaran</label>
+                            <input type="text" id="id_tahun" placeholder="Contoh: 2026/2027" oninput="autoSave()">
+                        </div>
+                        <div class="form-group">
+                            <label>Kota / Tempat Penetapan</label>
+                            <input type="text" id="id_kota" placeholder="Contoh: Sukabumi" oninput="autoSave()">
+                        </div>
+                        <div class="form-group">
+                            <label>Tanggal Dokumen</label>
+                            <input type="text" id="id_tanggal" placeholder="Contoh: Juli 2026" oninput="autoSave()">
+                        </div>
+                        <div class="form-group full-width">
+                            <label>Logo Sekolah (PNG/JPG)</label>
+                            <input type="file" id="id_logo_input" accept="image/*" onchange="handleLogoUpload(event)">
+                            <div id="logoPreviewContainer" style="margin-top: 10px;">
+                                <img id="id_logo_img" src="" alt="Preview Logo" style="max-height: 80px; display: none;">
+                                <button class="btn btn-danger" id="btnHapusLogo" style="display: none; margin-top: 5px;" onclick="removeLogo()">Hapus Logo</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. IDENTIFIKASI TAB -->
+            <div id="tab-identifikasi" class="tab-content">
+                <div class="card">
+                    <div class="card-title">2. Identifikasi Murid & Profil Pelajar Pancasila</div>
+                    <div class="form-group full-width">
+                        <label>Karakteristik & Profil Murid</label>
+                        <textarea id="id_karakteristik_murid" oninput="autoSave()"></textarea>
+                    </div>
+                    <label style="margin-top: 15px; display: block;">Dimensi Profil Lulusan / Pelajar Pancasila (DPL):</label>
+                    <div class="checkbox-group" id="dplCheckboxGroup">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. DESAIN PEMBELAJARAN TAB -->
+            <div id="tab-desain" class="tab-content">
+                <div class="card">
+                    <div class="card-title">3. Capaian & Desain Pembelajaran</div>
+                    <div class="form-group full-width">
+                        <label>Capaian Pembelajaran (CP)</label>
+                        <textarea id="desain_cp" oninput="autoSave()"></textarea>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label>Tujuan Pembelajaran (TP)</label>
+                        <div id="tpListContainer"></div>
+                        <button class="btn btn-secondary" onclick="addTPItem()">+ Tambah Tujuan Pembelajaran</button>
+                    </div>
+
+                    <div class="form-grid" style="margin-top: 15px;">
+                        <div class="form-group">
+                            <label>Model Pembelajaran</label>
+                            <input type="text" id="desain_model" placeholder="Contoh: Project Based Learning (PjBL)" oninput="autoSave()">
+                        </div>
+                        <div class="form-group">
+                            <label>Strategi Pembelajaran</label>
+                            <input type="text" id="desain_strategi" oninput="autoSave()">
+                        </div>
+                        <div class="form-group">
+                            <label>Kemitraan Pembelajaran</label>
+                            <input type="text" id="desain_kemitraan" oninput="autoSave()">
+                        </div>
+                        <div class="form-group">
+                            <label>Budaya Belajar</label>
+                            <input type="text" id="desain_budaya" oninput="autoSave()">
+                        </div>
+                        <div class="form-group">
+                            <label>Ruang Fisik</label>
+                            <input type="text" id="desain_ruang_fisik" oninput="autoSave()">
+                        </div>
+                        <div class="form-group">
+                            <label>Ruang Virtual / Media Digital</label>
+                            <input type="text" id="desain_ruang_virtual" oninput="autoSave()">
+                        </div>
+                        <div class="form-group full-width">
+                            <label>Pemanfaatan Digital</label>
+                            <textarea id="desain_pemanfaatan_digital" oninput="autoSave()"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. LANGKAH PEMBELAJARAN TAB -->
+            <div id="tab-langkah" class="tab-content">
+                <div class="card">
+                    <div class="card-title">4. Langkah-Langkah Pembelajaran (Sintaks)</div>
+                    
+                    <h3>A. Kegiatan Awal</h3>
+                    <div id="langkahAwalContainer"></div>
+                    <button class="btn btn-secondary" onclick="addLangkah('awal')" style="margin-bottom: 20px;">+ Tambah Langkah Awal</button>
+
+                    <h3>B. Kegiatan Inti</h3>
+                    <div id="langkahIntiContainer"></div>
+                    <button class="btn btn-secondary" onclick="addLangkah('inti')" style="margin-bottom: 20px;">+ Tambah Langkah Inti</button>
+
+                    <h3>C. Kegiatan Penutup</h3>
+                    <div id="langkahPenutupContainer"></div>
+                    <button class="btn btn-secondary" onclick="addLangkah('penutup')">+ Tambah Langkah Penutup</button>
+                </div>
+            </div>
+
+            <!-- 5. ASESMEN TAB -->
+            <div id="tab-asesmen" class="tab-content">
+                <div class="card">
+                    <div class="card-title">5. Rencana Asesmen</div>
+                    
+                    <h4>A. Asesmen Formatif Awal</h4>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Media Platform</label>
+                            <input type="text" id="as_awal_media" placeholder="Contoh: Google Form" oninput="autoSave()">
+                        </div>
+                        <div class="form-group">
+                            <label>Jenis Soal</label>
+                            <input type="text" id="as_awal_jenis" placeholder="Contoh: Pilihan Ganda (5 Soal)" oninput="autoSave()">
+                        </div>
+                    </div>
+
+                    <h4 style="margin-top: 15px;">B. Asesmen Formatif Proses</h4>
+                    <div class="form-group full-width">
+                        <textarea id="as_proses_desc" placeholder="Rincian observasi kelompok, kinerja LKPD, dll." oninput="autoSave()"></textarea>
+                    </div>
+
+                    <h4 style="margin-top: 15px;">C. Asesmen Sumatif</h4>
+                    <div class="form-group full-width">
+                        <textarea id="as_sumatif_desc" placeholder="Rincian tes tertulis, presentasi akhir, produk proyek, dll." oninput="autoSave()"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6. SOAL & KUNCI TAB -->
+            <div id="tab-soal" class="tab-content">
+                <div class="card">
+                    <div class="card-title">6. Bank Soal Asesmen & Kunci Jawaban Otomatis</div>
+                    <div id="soalListContainer"></div>
+                    <button class="btn btn-secondary" onclick="addSoalItem()">+ Tambah Soal Pilihan Ganda / Essay</button>
+                </div>
+            </div>
+
+            <!-- 7. RUBRIK TAB -->
+            <div id="tab-rubrik" class="tab-content">
+                <div class="card">
+                    <div class="card-title">7. Rubrik Penilaian Proyek & Kinerja</div>
+                    <div id="rubrikListContainer"></div>
+                    <button class="btn btn-secondary" onclick="addRubrikItem()">+ Tambah Aspek Rubrik</button>
+                </div>
+            </div>
+
+            <!-- 8. REFLEKSI TAB -->
+            <div id="tab-refleksi" class="tab-content">
+                <div class="card">
+                    <div class="card-title">8. Instumen Refleksi Guru & Murid</div>
+                    <div id="refleksiListContainer"></div>
+                    <button class="btn btn-secondary" onclick="addRefleksiItem()">+ Tambah Pertanyaan Refleksi</button>
+                </div>
+            </div>
+
+            <!-- 9. LKPD TAB -->
+            <div id="tab-lkpd" class="tab-content">
+                <div class="card">
+                    <div class="card-title">9. Lampiran Lembar Kerja Peserta Didik (LKPD)</div>
+                    <div class="form-group full-width">
+                        <label>Judul / Petunjuk LKPD</label>
+                        <input type="text" id="lkpd_judul" oninput="autoSave()">
+                    </div>
+                    <div class="form-group full-width">
+                        <label>Tujuan & Instruksi Kerja LKPD</label>
+                        <textarea id="lkpd_instruksi" oninput="autoSave()"></textarea>
+                    </div>
+                    <div class="form-group full-width">
+                        <label>Isi Tugas / Bagian LKPD</label>
+                        <textarea id="lkpd_isi" style="height: 150px;" oninput="autoSave()"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PREVIEW TAB -->
+            <div id="tab-preview" class="tab-content">
+                <div class="preview-controls no-print">
+                    <div>
+                        <strong>Mode Tampilan Dokumen A4</strong>
+                    </div>
+                    <div>
+                        <button class="btn btn-primary" onclick="window.print()">🖨️ Print / Cetak</button>
+                        <button class="btn btn-success" onclick="downloadPDF()">📥 Download PDF</button>
+                    </div>
+                </div>
+                <div class="preview-viewport" id="previewViewport">
+                    <!-- Dynamic Document Render -->
+                    <div class="a4-page" id="documentRender">
+                        <!-- Content rendered dynamically via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- PENGATURAN TAB -->
+            <div id="tab-pengaturan" class="tab-content">
+                <div class="card">
+                    <div class="card-title">Pengaturan Format Dokumen & Komponen</div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Jenis Font</label>
+                            <select id="set_font" onchange="autoSave()">
+                                <option value="Times New Roman">Times New Roman</option>
+                                <option value="Arial">Arial</option>
+                                <option value="Calibri">Calibri</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Ukuran Font</label>
+                            <select id="set_fontsize" onchange="autoSave()">
+                                <option value="11pt">11 pt</option>
+                                <option value="12pt">12 pt</option>
+                            </select>
+                        </div>
+                    </div>
+                    <label style="margin-top: 15px; display: block;">Komponen yang Ditampilkan di PDF:</label>
+                    <div class="checkbox-group" id="komponenCheckboxGroup">
+                        <!-- Checkboxes for sections -->
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- MAIN JAVASCRIPT APPLICATION LOGIC -->
+    <script>
+        // GLOBAL APP STATE & DEFAULT DEMO DATA
+        const DPL_LIST = [
+            "DPL 1 Keimanan dan Ketakwaan terhadap Tuhan YME",
+            "DPL 2 Kewargaan",
+            "DPL 3 Penalaran Kritis",
+            "DPL 4 Kreativitas",
+            "DPL 5 Kolaborasi",
+            "DPL 6 Kemandirian",
+            "DPL 7 Kesehatan",
+            "DPL 8 Komunikasi"
+        ];
+
+        const DEFAULT_MODUL = {
+            id: 'modul_default_01',
+            lastUpdated: new Date().toISOString(),
+            identitas: {
+                penyusun: "Guru Pengampu KIK",
+                nip: "-",
+                sekolah: "SMK Negeri 1 Cibadak",
+                mapel: "Kreativitas, Inovasi, dan Kewirausahaan",
+                topik: "Memahami dan Menerapkan Konsep Kreativitas serta Pola Pikir Berkembang (Growth Mindset)",
+                alokasi: "2 Pertemuan (5JP x 45 menit)",
+                fase: "SMK / XI / Fase F",
+                tahun: "2026/2027",
+                kota: "Sukabumi",
+                tanggal: "Juli 2026",
+                logoBase64: ""
+            },
+            identifikasi: {
+                karakteristikMurid: "Murid berasal dari latar belakang yang beragam, dengan minat dan pengalaman berbeda dalam mengasah kreativitas kewirausahaan.",
+                selectedDPL: [0, 2, 3, 4, 5, 7]
+            },
+            desain: {
+                cp: "Pada akhir fase F Murid mampu menciptakan sesuatu hal yang baru atau original baik ide, gagasan, maupun karya nyata, mampu membaca peluang usaha dengan mengidentifikasi potensi yang ada di lingkungan internal dan eksternal SMK.",
+                tp: [
+                    "Murid memahami dan menerapkan konsep kreativitas serta pola pikir berkembang (growth mindset) dalam memecahkan masalah",
+                    "Murid memahami tentang wirausaha dan kewirausahaan",
+                    "Murid memahami sikap dan perilaku wirausaha",
+                    "Murid mengidentifikasi peluang usaha"
+                ],
+                model: "Project Based Learning (PjBL)",
+                strategi: "Diskusi, eksplorasi, kolaborasi kelompok, dan presentasi",
+                kemitraan: "Murid dengan guru, Murid dengan Murid, teknologi digital",
+                budaya: "Kolaboratif, kreatif, kritis, dan partisipatif",
+                ruangFisik: "Kelas berkelompok, proyektor, akses internet",
+                ruangVirtual: "Canva, Google Form",
+                pemanfaatanDigital: "Form digital uji formatif awal, Canva untuk materi, dan Google Form asesmen sumatif"
+            },
+            langkah: {
+                awal: [
+                    "Guru membuka pembelajaran dengan salam dan periksa kesiapan murid.",
+                    "Guru meminta murid berdoa (mindfulness) dan melakukan ice breaking.",
+                    "Guru memberikan pemantik kontekstual tentang jiwa wirausaha dan growth mindset."
+                ],
+                inti: [
+                    "Murid mencermati pemaparan materi kreativitas melalui Canva.",
+                    "Murid membentuk kelompok diskusi dan menerima tantangan LKPD.",
+                    "Murid berkolaborasi menyusun kerangka ide dan presentasi."
+                ],
+                penutup: [
+                    "Murid mempresentasikan hasil karya dan menerima umpan balik.",
+                    "Guru menyimpulkan pembelajaran dan menutup dengan doa."
+                ]
+            },
+            asesmen: {
+                awalMedia: "Google Form",
+                awalJenis: "Pilihan Ganda (5 Soal)",
+                prosesDesc: "Observasi kinerja kelompok, kerja sama, dan kualitas presentasi LKPD.",
+                sumatifDesc: "Tes pilihan ganda digital (10 soal) untuk mengukur pemahaman individu."
+            },
+            soal: [
+                {
+                    type: "PG",
+                    pertanyaan: "Seseorang yang memiliki growth mindset akan menyikapi kegagalan dengan cara...",
+                    opsiA: "Berhenti mencoba karena tidak berbakat",
+                    opsiB: "Menyalahkan situasi pasar",
+                    opsiC: "Menganggap diri tidak layak",
+                    opsiD: "Menjadikan kegagalan pelajaran dan mencari strategi baru",
+                    opsiE: "Menunggu bantuan modal",
+                    kunci: "D"
+                }
+            ],
+            rubrik: [
+                { aspek: "Perencanaan Proyek", baik: "Ide sangat jelas dan terstruktur", cukup: "Ide cukup jelas", kurang: "Ide tidak terencana" },
+                { aspek: "Kreativitas Desain", baik: "Slide menarik dan estetis", cukup: "Slide cukup baik", kurang: "Slide berantakan" }
+            ],
+            refleksi: [
+                "Sikap wirausahawan apa yang paling sulit kamu terapkan hari ini?",
+                "Bagaimana pandanganmu terhadap kegagalan setelah memahami growth mindset?"
+            ],
+            lkpd: {
+                judul: "LKPD: Kreativitas dan Peluang Usaha Lingkungan",
+                instruksi: "Amati lingkungan sekitarmu. Temukan satu masalah nyata dan rumuskan ide kreatif solusinya secara berkelompok.",
+                isi: "Bagian 1: Identifikasi Masalah\nBagian 2: Brainstorming 3 Ide Solusi\nBagian 3: Refleksi Diri"
+            },
+            pengaturan: {
+                font: "Times New Roman",
+                fontSize: "11pt",
+                komponen: {
+                    cover: true,
+                    informasiUmum: true,
+                    identifikasi: true,
+                    desain: true,
+                    langkah: true,
+                    asesmen: true,
+                    soal: true,
+                    rubrik: true,
+                    refleksi: true,
+                    lkpd: true
+                }
+            }
+        };
+
+        let currentModul = JSON.parse(JSON.stringify(DEFAULT_MODUL));
+        let allModuls = [currentModul];
+
+        // INITIALIZATION
+        window.addEventListener('DOMContentLoaded', () => {
+            loadAllFromStorage();
+            renderDPLCheckboxes();
+            renderModulListTable();
+            populateFormFromState();
+            renderDocumentPreview();
+        });
+
+        // LOCAL STORAGE MANAGEMENT
+        function saveToStorage() {
+            currentModul.lastUpdated = new Date().toISOString();
+            const idx = allModuls.findIndex(m => m.id === currentModul.id);
+            if(idx >= 0) allModuls[idx] = currentModul;
+            else allModuls.push(currentModul);
+
+            localStorage.setItem('modul_generator_data', JSON.stringify(allModuls));
+            localStorage.setItem('modul_generator_current_id', currentModul.id);
+            document.getElementById('saveStatus').innerText = 'Tersimpan';
+        }
+
+        function loadAllFromStorage() {
+            const data = localStorage.getItem('modul_generator_data');
+            const currId = localStorage.getItem('modul_generator_current_id');
+            if (data) {
+                allModuls = JSON.parse(data);
+                if (currId) {
+                    const found = allModuls.find(m => m.id === currId);
+                    if (found) currentModul = found;
+                } else if(allModuls.length > 0) {
+                    currentModul = allModuls[0];
+                }
+            } else {
+                saveToStorage();
+            }
+        }
+
+        function autoSave() {
+            document.getElementById('saveStatus').innerText = 'Menyimpan...';
+            readFormToState();
+            saveToStorage();
+            renderDocumentPreview();
+            showToast("Draft tersimpan otomatis");
+        }
+
+        function saveData(manual = false) {
+            autoSave();
+            if(manual) alert("Data Modul Ajar Berhasil Disimpan!");
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 2000);
+        }
+
+        // TAB NAVIGATION
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.sidebar-menu li').forEach(el => el.classList.remove('active'));
+
+            const targetTab = document.getElementById(`tab-${tabName}`);
+            if(targetTab) targetTab.classList.add('active');
+
+            if(tabName === 'preview') renderDocumentPreview();
+            if(tabName === 'dashboard') renderModulListTable();
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+        }
+
+        // FORM POPULATION & STATE BINDING
+        function populateFormFromState() {
+            // Identitas
+            document.getElementById('id_penyusun').value = currentModul.identitas.penyusun || '';
+            document.getElementById('id_nip').value = currentModul.identitas.nip || '';
+            document.getElementById('id_sekolah').value = currentModul.identitas.sekolah || '';
+            document.getElementById('id_mapel').value = currentModul.identitas.mapel || '';
+            document.getElementById('id_topik').value = currentModul.identitas.topik || '';
+            document.getElementById('id_alokasi').value = currentModul.identitas.alokasi || '';
+            document.getElementById('id_fase').value = currentModul.identitas.fase || '';
+            document.getElementById('id_tahun').value = currentModul.identitas.tahun || '';
+            document.getElementById('id_kota').value = currentModul.identitas.kota || '';
+            document.getElementById('id_tanggal').value = currentModul.identitas.tanggal || '';
+
+            if (currentModul.identitas.logoBase64) {
+                document.getElementById('id_logo_img').src = currentModul.identitas.logoBase64;
+                document.getElementById('id_logo_img').style.display = 'block';
+                document.getElementById('btnHapusLogo').style.display = 'inline-block';
+            } else {
+                document.getElementById('id_logo_img').style.display = 'none';
+                document.getElementById('btnHapusLogo').style.display = 'none';
+            }
+
+            // Identifikasi
+            document.getElementById('id_karakteristik_murid').value = currentModul.identifikasi.karakteristikMurid || '';
+
+            // Desain
+            document.getElementById('desain_cp').value = currentModul.desain.cp || '';
+            document.getElementById('desain_model').value = currentModul.desain.model || '';
+            document.getElementById('desain_strategi').value = currentModul.desain.strategi || '';
+            document.getElementById('desain_kemitraan').value = currentModul.desain.kemitraan || '';
+            document.getElementById('desain_budaya').value = currentModul.desain.budaya || '';
+            document.getElementById('desain_ruang_fisik').value = currentModul.desain.ruangFisik || '';
+            document.getElementById('desain_ruang_virtual').value = currentModul.desain.ruangVirtual || '';
+            document.getElementById('desain_pemanfaatan_digital').value = currentModul.desain.pemanfaatanDigital || '';
+
+            // Dynamic Lists
+            renderTPList();
+            renderLangkahList('awal');
+            renderLangkahList('inti');
+            renderLangkahList('penutup');
+            renderSoalList();
+            renderRubrikList();
+            renderRefleksiList();
+
+            // Asesmen
+            document.getElementById('as_awal_media').value = currentModul.asesmen.awalMedia || '';
+            document.getElementById('as_awal_jenis').value = currentModul.asesmen.awalJenis || '';
+            document.getElementById('as_proses_desc').value = currentModul.asesmen.prosesDesc || '';
+            document.getElementById('as_sumatif_desc').value = currentModul.asesmen.sumatifDesc || '';
+
+            // LKPD
+            document.getElementById('lkpd_judul').value = currentModul.lkpd.judul || '';
+            document.getElementById('lkpd_instruksi').value = currentModul.lkpd.instruksi || '';
+            document.getElementById('lkpd_isi').value = currentModul.lkpd.isi || '';
+        }
+
+        function readFormToState() {
+            currentModul.identitas.penyusun = document.getElementById('id_penyusun').value;
+            currentModul.identitas.nip = document.getElementById('id_nip').value;
+            currentModul.identitas.sekolah = document.getElementById('id_sekolah').value;
+            currentModul.identitas.mapel = document.getElementById('id_mapel').value;
+            currentModul.identitas.topik = document.getElementById('id_topik').value;
+            currentModul.identitas.alokasi = document.getElementById('id_alokasi').value;
+            currentModul.identitas.fase = document.getElementById('id_fase').value;
+            currentModul.identitas.tahun = document.getElementById('id_tahun').value;
+            currentModul.identitas.kota = document.getElementById('id_kota').value;
+            currentModul.identitas.tanggal = document.getElementById('id_tanggal').value;
+
+            currentModul.identifikasi.karakteristikMurid = document.getElementById('id_karakteristik_murid').value;
+
+            currentModul.desain.cp = document.getElementById('desain_cp').value;
+            currentModul.desain.model = document.getElementById('desain_model').value;
+            currentModul.desain.strategi = document.getElementById('desain_strategi').value;
+            currentModul.desain.kemitraan = document.getElementById('desain_kemitraan').value;
+            currentModul.desain.budaya = document.getElementById('desain_budaya').value;
+            currentModul.desain.ruangFisik = document.getElementById('desain_ruang_fisik').value;
+            currentModul.desain.ruangVirtual = document.getElementById('desain_ruang_virtual').value;
+            currentModul.desain.pemanfaatanDigital = document.getElementById('desain_pemanfaatan_digital').value;
+
+            currentModul.asesmen.awalMedia = document.getElementById('as_awal_media').value;
+            currentModul.asesmen.awalJenis = document.getElementById('as_awal_jenis').value;
+            currentModul.asesmen.prosesDesc = document.getElementById('as_proses_desc').value;
+            currentModul.asesmen.sumatifDesc = document.getElementById('as_sumatif_desc').value;
+
+            currentModul.lkpd.judul = document.getElementById('lkpd_judul').value;
+            currentModul.lkpd.instruksi = document.getElementById('lkpd_instruksi').value;
+            currentModul.lkpd.isi = document.getElementById('lkpd_isi').value;
+        }
+
+        // DPL CHECKBOXES
+        function renderDPLCheckboxes() {
+            const container = document.getElementById('dplCheckboxGroup');
+            container.innerHTML = '';
+            DPL_LIST.forEach((dpl, idx) => {
+                const isChecked = currentModul.identifikasi.selectedDPL.includes(idx);
+                const item = document.createElement('div');
+                item.className = 'checkbox-item';
+                item.innerHTML = `
+                    <input type="checkbox" id="dpl_${idx}" ${isChecked ? 'checked' : ''} onchange="toggleDPL(${idx})">
+                    <label for="dpl_${idx}">${dpl}</label>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function toggleDPL(idx) {
+            const arr = currentModul.identifikasi.selectedDPL;
+            const pos = arr.indexOf(idx);
+            if (pos >= 0) arr.splice(pos, 1);
+            else arr.push(idx);
+            autoSave();
+        }
+
+        // LOGO HANDLING
+        function handleLogoUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    currentModul.identitas.logoBase64 = e.target.result;
+                    document.getElementById('id_logo_img').src = e.target.result;
+                    document.getElementById('id_logo_img').style.display = 'block';
+                    document.getElementById('btnHapusLogo').style.display = 'inline-block';
+                    autoSave();
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function removeLogo() {
+            currentModul.identitas.logoBase64 = "";
+            document.getElementById('id_logo_img').style.display = 'none';
+            document.getElementById('btnHapusLogo').style.display = 'none';
+            document.getElementById('id_logo_input').value = "";
+            autoSave();
+        }
+
+        // DYNAMIC LIST RENDERERS (TP, Langkah, Soal, Rubrik)
+        function renderTPList() {
+            const container = document.getElementById('tpListContainer');
+            container.innerHTML = '';
+            currentModul.desain.tp.forEach((tp, idx) => {
+                const item = document.createElement('div');
+                item.className = 'dynamic-item';
+                item.innerHTML = `
+                    <span>${idx + 1}.</span>
+                    <input type="text" value="${tp}" oninput="updateTPItem(${idx}, this.value)">
+                    <button class="btn btn-danger" onclick="deleteTPItem(${idx})">X</button>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function addTPItem() { currentModul.desain.tp.push("Tujuan Pembelajaran Baru"); autoSave(); renderTPList(); }
+        function updateTPItem(idx, val) { currentModul.desain.tp[idx] = val; autoSave(); }
+        function deleteTPItem(idx) { currentModul.desain.tp.splice(idx, 1); autoSave(); renderTPList(); }
+
+        // LANGKAH BUILDER
+        function renderLangkahList(type) {
+            const container = document.getElementById(`langkah${type.charAt(0).toUpperCase() + type.slice(1)}Container`);
+            container.innerHTML = '';
+            currentModul.langkah[type].forEach((step, idx) => {
+                const item = document.createElement('div');
+                item.className = 'dynamic-item';
+                item.innerHTML = `
+                    <span>${idx + 1}.</span>
+                    <textarea oninput="updateLangkah('${type}', ${idx}, this.value)">${step}</textarea>
+                    <button class="btn btn-danger" onclick="deleteLangkah('${type}', ${idx})">X</button>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function addLangkah(type) { currentModul.langkah[type].push("Langkah kegiatan baru..."); autoSave(); renderLangkahList(type); }
+        function updateLangkah(type, idx, val) { currentModul.langkah[type][idx] = val; autoSave(); }
+        function deleteLangkah(type, idx) { currentModul.langkah[type].splice(idx, 1); autoSave(); renderLangkahList(type); }
+
+        // SOAL BUILDER
+        function renderSoalList() {
+            const container = document.getElementById('soalListContainer');
+            container.innerHTML = '';
+            currentModul.soal.forEach((s, idx) => {
+                const item = document.createElement('div');
+                item.className = 'card';
+                item.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                        <strong>Soal No. ${idx + 1}</strong>
+                        <button class="btn btn-danger" onclick="deleteSoal(${idx})">Hapus Soal</button>
+                    </div>
+                    <div class="form-group">
+                        <label>Pertanyaan</label>
+                        <input type="text" value="${s.pertanyaan}" oninput="updateSoal(${idx}, 'pertanyaan', this.value)">
+                    </div>
+                    <div class="form-grid">
+                        <input type="text" placeholder="Opsi A" value="${s.opsiA || ''}" oninput="updateSoal(${idx}, 'opsiA', this.value)">
+                        <input type="text" placeholder="Opsi B" value="${s.opsiB || ''}" oninput="updateSoal(${idx}, 'opsiB', this.value)">
+                        <input type="text" placeholder="Opsi C" value="${s.opsiC || ''}" oninput="updateSoal(${idx}, 'opsiC', this.value)">
+                        <input type="text" placeholder="Opsi D" value="${s.opsiD || ''}" oninput="updateSoal(${idx}, 'opsiD', this.value)">
+                        <input type="text" placeholder="Opsi E" value="${s.opsiE || ''}" oninput="updateSoal(${idx}, 'opsiE', this.value)">
+                        <input type="text" placeholder="Kunci Jawaban (A/B/C/D/E)" value="${s.kunci || ''}" oninput="updateSoal(${idx}, 'kunci', this.value)">
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function addSoalItem() {
+            currentModul.soal.push({ pertanyaan: "Pertanyaan baru...", opsiA: "", opsiB: "", opsiC: "", opsiD: "", opsiE: "", kunci: "A" });
+            autoSave();
+            renderSoalList();
+        }
+        function updateSoal(idx, field, val) { currentModul.soal[idx][field] = val; autoSave(); }
+        function deleteSoal(idx) { currentModul.soal.splice(idx, 1); autoSave(); renderSoalList(); }
+
+        // RUBRIK BUILDER
+        function renderRubrikList() {
+            const container = document.getElementById('rubrikListContainer');
+            container.innerHTML = '';
+            currentModul.rubrik.forEach((r, idx) => {
+                const item = document.createElement('div');
+                item.className = 'dynamic-item';
+                item.innerHTML = `
+                    <div style="flex:1;">
+                        <input type="text" placeholder="Aspek Penilaian" value="${r.aspek}" oninput="updateRubrik(${idx}, 'aspek', this.value)" style="margin-bottom:5px;">
+                        <input type="text" placeholder="Kriteria Baik" value="${r.baik}" oninput="updateRubrik(${idx}, 'baik', this.value)">
+                    </div>
+                    <button class="btn btn-danger" onclick="deleteRubrik(${idx})">X</button>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function addRubrikItem() { currentModul.rubrik.push({ aspek: "Aspek Baru", baik: "Kriteria Baik", cukup: "", kurang: "" }); autoSave(); renderRubrikList(); }
+        function updateRubrik(idx, field, val) { currentModul.rubrik[idx][field] = val; autoSave(); }
+        function deleteRubrik(idx) { currentModul.rubrik.splice(idx, 1); autoSave(); renderRubrikList(); }
+
+        // REFLEKSI BUILDER
+        function renderRefleksiList() {
+            const container = document.getElementById('refleksiListContainer');
+            container.innerHTML = '';
+            currentModul.refleksi.forEach((rf, idx) => {
+                const item = document.createElement('div');
+                item.className = 'dynamic-item';
+                item.innerHTML = `
+                    <span>${idx + 1}.</span>
+                    <input type="text" value="${rf}" oninput="updateRefleksi(${idx}, this.value)">
+                    <button class="btn btn-danger" onclick="deleteRefleksi(${idx})">X</button>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function addRefleksiItem() { currentModul.refleksi.push("Pertanyaan refleksi baru..."); autoSave(); renderRefleksiList(); }
+        function updateRefleksi(idx, val) { currentModul.refleksi[idx] = val; autoSave(); }
+        function deleteRefleksi(idx) { currentModul.refleksi.splice(idx, 1); autoSave(); renderRefleksiList(); }
+
+        // TABLE MANAGEMENT DASHBOARD
+        function renderModulListTable() {
+            const tbody = document.getElementById('modulListBody');
+            tbody.innerHTML = '';
+            allModuls.forEach(m => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${m.identitas.topik || 'Modul Tanpa Judul'}</strong></td>
+                    <td>${m.identitas.mapel || '-'}</td>
+                    <td>${m.identitas.fase || '-'}</td>
+                    <td>${new Date(m.lastUpdated).toLocaleString('id-ID')}</td>
+                    <td>
+                        <button class="btn btn-primary" onclick="loadModul('${m.id}')">Edit</button>
+                        <button class="btn btn-secondary" onclick="duplicateModul('${m.id}')">Duplikasi</button>
+                        <button class="btn btn-danger" onclick="deleteModul('${m.id}')">Hapus</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function createNewModul() {
+            const newMod = JSON.parse(JSON.stringify(DEFAULT_MODUL));
+            newMod.id = 'modul_' + Date.now();
+            newMod.identitas.topik = "Modul Ajar Baru " + new Date().toLocaleDateString('id-ID');
+            allModuls.push(newMod);
+            currentModul = newMod;
+            saveToStorage();
+            populateFormFromState();
+            switchTab('identitas');
+            showToast("Modul Baru Berhasil Dibuat");
+        }
+
+        function loadModul(id) {
+            const found = allModuls.find(m => m.id === id);
+            if (found) {
+                currentModul = found;
+                saveToStorage();
+                populateFormFromState();
+                switchTab('identitas');
+                showToast("Modul Ditemukan & Dimuat");
+            }
+        }
+
+        function duplicateModul(id) {
+            const found = allModuls.find(m => m.id === id);
+            if (found) {
+                const dup = JSON.parse(JSON.stringify(found));
+                dup.id = 'modul_' + Date.now();
+                dup.identitas.topik += " (Salinan)";
+                allModuls.push(dup);
+                saveToStorage();
+                renderModulListTable();
+                showToast("Modul Berhasil Diduplikasi");
+            }
+        }
+
+        function deleteModul(id) {
+            if(confirm("Apakah Anda yakin ingin menghapus modul ini?")) {
+                allModuls = allModuls.filter(m => m.id !== id);
+                if(allModuls.length === 0) createNewModul();
+                else currentModul = allModuls[0];
+                saveToStorage();
+                renderModulListTable();
+                populateFormFromState();
+                showToast("Modul Berhasil Dihapus");
+            }
+        }
+
+        function resetCurrentModul() {
+            if(confirm("Reset seluruh data modul ini ke template awal?")) {
+                currentModul = JSON.parse(JSON.stringify(DEFAULT_MODUL));
+                currentModul.id = 'modul_' + Date.now();
+                saveToStorage();
+                populateFormFromState();
+                renderDocumentPreview();
+                showToast("Modul Berhasil Direset");
+            }
+        }
+
+        // EXPORT & IMPORT JSON
+        function exportJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(currentModul, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `Modul_${currentModul.identitas.sekolah || 'SMK'}_${currentModul.identitas.mapel || 'KIK'}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function importJSON() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'application/json';
+            input.onchange = e => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = event => {
+                    try {
+                        const imported = JSON.parse(event.target.result);
+                        imported.id = 'modul_' + Date.now();
+                        currentModul = imported;
+                        saveToStorage();
+                        populateFormFromState();
+                        renderDocumentPreview();
+                        showToast("File JSON Berhasil Diimpor");
+                    } catch(err) {
+                        alert("Format File JSON Tidak Valid!");
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+        // DOCUMENT PREVIEW RENDERER (FULL OFFICIAL FORMAT)
+        function renderDocumentPreview() {
+            const renderBox = document.getElementById('documentRender');
+            const id = currentModul.identitas;
+            const des = currentModul.desain;
+            const langkah = currentModul.langkah;
+
+            let logoHtml = id.logoBase64 ? `<div class="doc-logo-box"><img src="${id.logoBase64}"></div>` : '';
+
+            let dplHtml = DPL_LIST.map((d, i) => {
+                const checked = currentModul.identifikasi.selectedDPL.includes(i);
+                return `${checked ? '☑' : '☐'} ${d}`;
+            }).join('<br>');
+
+            let tpHtml = des.tp.map((t, i) => `${i + 1}. ${t}`).join('<br>');
+
+            let kunciHtml = currentModul.soal.map((s, i) => `${i + 1}. ${s.kunci || '-'}`).join(' | ');
+
+            renderBox.innerHTML = `
+                <!-- COVER PAGE -->
+                <div class="doc-header-title">MODUL AJAR</div>
+                <div class="doc-header-title" style="font-size: 12pt; color: #1e3a8a;">${id.mapel || 'MATA PELAJARAN'}</div>
+                <div style="text-align:center; font-weight:bold; margin-bottom: 20px;">${id.topik || 'TOPIK MODUL'}</div>
+                <div style="text-align:center;">KELAS / FASE: ${id.fase || '-'}</div>
+                <div style="text-align:center; font-weight:bold; margin-top:5px;">${id.sekolah || 'SEKOAH'}</div>
+                <div style="text-align:center;">TAHUN PELAJARAN ${id.tahun || '-'}</div>
+
+                ${logoHtml}
+
+                <div style="text-align:center; font-weight:bold; margin-top:30px;">
+                    NAMA GURU: ${id.penyusun || '-'}<br>
+                    NIP: ${id.nip || '-'}<br><br>
+                    ${id.sekolah || '-'}<br>
+                    ${id.tanggal || '-'}
+                </div>
+
+                <div style="page-break-before: always; margin-top: 30px;"></div>
+
+                <!-- DESAIN & INFORMASI UMUM -->
+                <div class="doc-header-title" style="font-size: 12pt;">MODUL AJAR</div>
+                <table class="doc-table">
+                    <tr><td colspan="2" class="doc-section-bg">Informasi Umum</td></tr>
+                    <tr><td width="30%"><strong>Nama Penyusun</strong></td><td>${id.penyusun}</td></tr>
+                    <tr><td><strong>Nama Sekolah</strong></td><td>${id.sekolah}</td></tr>
+                    <tr><td><strong>Mata Pelajaran</strong></td><td>${id.mapel}</td></tr>
+                    <tr><td><strong>Alokasi Waktu</strong></td><td>${id.alokasi}</td></tr>
+                    <tr><td><strong>Fase / Kelas</strong></td><td>${id.fase}</td></tr>
+
+                    <tr><td colspan="2" class="doc-section-bg">IDENTIFIKASI</td></tr>
+                    <tr><td><strong>Karakteristik Murid</strong></td><td>${currentModul.identifikasi.karakteristikMurid}</td></tr>
+                    <tr><td><strong>Dimensi Profil Lulusan</strong></td><td>${dplHtml}</td></tr>
+
+                    <tr><td colspan="2" class="doc-section-bg">DESAIN PEMBELAJARAN</td></tr>
+                    <tr><td><strong>Capaian Pembelajaran (CP)</strong></td><td>${des.cp}</td></tr>
+                    <tr><td><strong>Tujuan Pembelajaran (TP)</strong></td><td>${tpHtml}</td></tr>
+                    <tr><td><strong>Model Pembelajaran</strong></td><td>${des.model}</td></tr>
+                    <tr><td><strong>Strategi & Praktik</strong></td><td>${des.strategi}</td></tr>
+                    <tr><td><strong>Kemitraan Pembelajaran</strong></td><td>${des.kemitraan}</td></tr>
+                    <tr><td><strong>Lingkungan & Digital</strong></td><td>${des.pemanfaatanDigital}</td></tr>
+                </table>
+
+                <!-- LANGKAH PEMBELAJARAN -->
+                <div style="font-weight:bold; margin-top:15px; text-transform:uppercase;">LANGKAH-LANGKAH PEMBELAJARAN</div>
+                <table class="doc-table">
+                    <tr><td width="20%"><strong>Kegiatan Awal</strong></td><td>${langkah.awal.map((s,i)=>`${i+1}.${s}`).join('<br>')}</td></tr>
+                    <tr><td><strong>Kegiatan Inti</strong></td><td>${langkah.inti.map((s,i)=>`${i+1}.${s}`).join('<br>')}</td></tr>
+                    <tr><td><strong>Kegiatan Penutup</strong></td><td>${langkah.penutup.map((s,i)=>`${i+1}.${s}`).join('<br>')}</td></tr>
+                </table>
+
+                <!-- ASESMEN & SOAL -->
+                <div style="font-weight:bold; margin-top:15px; text-transform:uppercase;">RENCANA ASESMEN</div>
+                <table class="doc-table">
+                    <tr><td><strong>Formatif Awal</strong></td><td>Media: ${currentModul.asesmen.awalMedia} | Jenis: ${currentModul.asesmen.awalJenis}</td></tr>
+                    <tr><td><strong>Formatif Proses</strong></td><td>${currentModul.asesmen.prosesDesc}</td></tr>
+                    <tr><td><strong>Sumatif</strong></td><td>${currentModul.asesmen.sumatifDesc}</td></tr>
+                    <tr><td><strong>Kunci Jawaban Soal</strong></td><td>${kunciHtml}</td></tr>
+                </table>
+
+                <!-- SIGNATURES -->
+                <div class="doc-signatures">
+                    <div>
+                        Mengetahui,<br>
+                        Kepala Sekolah<br><br><br><br>
+                        <strong>( ________________________ )</strong><br>
+                        NIP.
+                    </div>
+                    <div>
+                        ${id.kota || 'Kota'}, ${id.tanggal || 'Tanggal'}<br>
+                        Guru Mata Pelajaran,<br><br><br><br>
+                        <strong>${id.penyusun || 'Guru'}</strong><br>
+                        NIP. ${id.nip || '-'}
+                    </div>
+                </div>
+
+                <div style="page-break-before: always; margin-top: 30px;"></div>
+
+                <!-- LAMPIRAN LKPD -->
+                <div class="doc-header-title" style="font-size: 11pt;">LAMPIRAN: LEMBAR KERJA PESERTA DIDIK (LKPD)</div>
+                <table class="doc-table">
+                    <tr><td width="25%"><strong>Judul LKPD</strong></td><td>${currentModul.lkpd.judul}</td></tr>
+                    <tr><td><strong>Instruksi Kerja</strong></td><td>${currentModul.lkpd.instruksi}</td></tr>
+                    <tr><td><strong>Rincian Tugas</strong></td><td><pre style="font-family:inherit; white-space:pre-wrap;">${currentModul.lkpd.isi}</pre></td></tr>
+                </table>
+            `;
+        }
+
+        // DIRECT CLIENT-SIDE PDF GENERATION (html2canvas + jsPDF)
+        function downloadPDF() {
+            showToast("Sedang memproses PDF...");
+            const element = document.getElementById('documentRender');
+            
+            const opt = {
+                margin: 0,
+                filename: `Modul_Ajar_${(currentModul.identitas.sekolah || 'SMK').replace(/\s+/g, '_')}_${(currentModul.identitas.mapel || 'Modul').replace(/\s+/g, '_')}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            html2canvas(element, { scale: 2 }).then(canvas => {
+                const imgData = canvas.toDataURL('image/jpeg', 0.98);
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const imgWidth = 210;
+                const pageHeight = 297;
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                let heightLeft = imgHeight;
+                let position = 0;
+
+                pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+
+                while (heightLeft >= 0) {
+                    position = heightLeft - imgHeight;
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+                }
+
+                pdf.save(opt.filename);
+                showToast("PDF Berhasil Diunduh!");
+            });
+        }
+    </script>
+</body>
+</html>
